@@ -7,11 +7,16 @@ from uuid import UUID
 from dateutil.tz import tzutc
 from six import string_types
 
+from usermaven.consumer import Consumer
+from usermaven.request import batch_post
+from usermaven.utils import clean, guess_timezone
+from usermaven.version import VERSION
 
 try:
     import queue
 except ImportError:
     import Queue as queue
+
 
 ID_TYPES = (numbers.Number, string_types, UUID)
 MAX_DICT_SIZE = 50_000
@@ -22,8 +27,80 @@ class Client(object):
 
     log = logging.getLogger("usermaven")
 
-    def __init__(self):
-        self.log.debug("client initialized.")
+    def __init__(
+        self,
+        api_key=None,
+        host=None,
+        debug=False,
+        max_queue_size=10000,
+        send=True,
+        on_error=None,
+        flush_at=100,
+        flush_interval=0.5,
+        gzip=False,
+        max_retries=3,
+        sync_mode=False,
+        timeout=15,
+        thread=1,
+        personal_api_key=None,
+        project_api_key=None,
+    ):
+
+        self.queue = queue.Queue(max_queue_size)
+
+        # api_key: This should be the Team API Key (token), public
+        self.api_key = project_api_key or api_key
+
+        require("api_key", self.api_key, string_types)
+
+        self.on_error = on_error
+        self.debug = debug
+        self.send = send
+        self.sync_mode = sync_mode
+        self.host = host
+        self.gzip = gzip
+        self.timeout = timeout
+        self.group_type_mapping = None
+
+        # personal_api_key: This should be a generated Personal API Key, private
+        self.personal_api_key = personal_api_key
+        if debug:
+            # Ensures that debug level messages are logged when debug mode is on.
+            # Otherwise, defaults to WARNING level. See https://docs.python.org/3/howto/logging.html#what-happens-if-no-configuration-is-provided
+            logging.basicConfig()
+            self.log.setLevel(logging.DEBUG)
+        else:
+            self.log.setLevel(logging.WARNING)
+
+        if sync_mode:
+            self.consumers = None
+        else:
+            # On program exit, allow the consumer thread to exit cleanly.
+            # This prevents exceptions and a messy shutdown when the
+            # interpreter is destroyed before the daemon thread finishes
+            # execution. However, it is *not* the same as flushing the queue!
+            # To guarantee all messages have been delivered, you'll still need
+            # to call flush().
+            if send:
+                atexit.register(self.join)
+            for n in range(thread):
+                self.consumers = []
+                consumer = Consumer(
+                    self.queue,
+                    self.api_key,
+                    host=host,
+                    on_error=on_error,
+                    flush_at=flush_at,
+                    flush_interval=flush_interval,
+                    gzip=gzip,
+                    retries=max_retries,
+                    timeout=timeout,
+                )
+                self.consumers.append(consumer)
+
+                # if we've disabled sending, just don't start the consumer
+                if send:
+                    consumer.start()
 
     def identify(self, distinct_id=None, properties=None, context=None, timestamp=None, uuid=None):
         properties = properties or {}
@@ -73,6 +150,173 @@ class Client(object):
 
         return self._enqueue(msg)
 
+    def set(self, distinct_id=None, properties=None, context=None, timestamp=None, uuid=None):
+        properties = properties or {}
+        context = context or {}
+        require("distinct_id", distinct_id, ID_TYPES)
+        require("properties", properties, dict)
+
+        msg = {
+            "timestamp": timestamp,
+            "context": context,
+            "distinct_id": distinct_id,
+            "$set": properties,
+            "event": "$set",
+            "uuid": uuid,
+        }
+
+        return self._enqueue(msg)
+
+    def set_once(self, distinct_id=None, properties=None, context=None, timestamp=None, uuid=None):
+        properties = properties or {}
+        context = context or {}
+        require("distinct_id", distinct_id, ID_TYPES)
+        require("properties", properties, dict)
+
+        msg = {
+            "timestamp": timestamp,
+            "context": context,
+            "distinct_id": distinct_id,
+            "$set_once": properties,
+            "event": "$set_once",
+            "uuid": uuid,
+        }
+
+        return self._enqueue(msg)
+
+    def group_identify(self, group_type=None, group_key=None, properties=None, context=None, timestamp=None, uuid=None):
+        properties = properties or {}
+        context = context or {}
+        require("group_type", group_type, ID_TYPES)
+        require("group_key", group_key, ID_TYPES)
+        require("properties", properties, dict)
+
+        msg = {
+            "event": "$groupidentify",
+            "properties": {
+                "$group_type": group_type,
+                "$group_key": group_key,
+                "$group_set": properties,
+            },
+            "distinct_id": "${}_{}".format(group_type, group_key),
+            "timestamp": timestamp,
+            "context": context,
+            "uuid": uuid,
+        }
+
+        return self._enqueue(msg)
+
+    def alias(self, previous_id=None, distinct_id=None, context=None, timestamp=None, uuid=None):
+        context = context or {}
+
+        require("previous_id", previous_id, ID_TYPES)
+        require("distinct_id", distinct_id, ID_TYPES)
+
+        msg = {
+            "properties": {
+                "distinct_id": previous_id,
+                "alias": distinct_id,
+            },
+            "timestamp": timestamp,
+            "context": context,
+            "event": "$create_alias",
+            "distinct_id": previous_id,
+        }
+
+        return self._enqueue(msg)
+
+    def page(self, distinct_id=None, url=None, properties=None, context=None, timestamp=None, uuid=None):
+        properties = properties or {}
+        context = context or {}
+
+        require("distinct_id", distinct_id, ID_TYPES)
+        require("properties", properties, dict)
+
+        require("url", url, string_types)
+        properties["$current_url"] = url
+
+        msg = {
+            "event": "$pageview",
+            "properties": properties,
+            "timestamp": timestamp,
+            "context": context,
+            "distinct_id": distinct_id,
+            "uuid": uuid,
+        }
+
+        return self._enqueue(msg)
+
+    def _enqueue(self, msg):
+        """Push a new `msg` onto the queue, return `(success, msg)`"""
+        timestamp = msg["timestamp"]
+        if timestamp is None:
+            timestamp = datetime.utcnow().replace(tzinfo=tzutc())
+
+        require("timestamp", timestamp, datetime)
+        require("context", msg["context"], dict)
+
+        # add common
+        timestamp = guess_timezone(timestamp)
+        msg["timestamp"] = timestamp.isoformat()
+
+        # only send if "uuid" is truthy
+        if "uuid" in msg:
+            uuid = msg.pop("uuid")
+            if uuid:
+                msg["uuid"] = stringify_id(uuid)
+
+        if not msg.get("properties"):
+            msg["properties"] = {}
+        msg["properties"]["$lib"] = "usermaven-python"
+        msg["properties"]["$lib_version"] = VERSION
+
+        msg["distinct_id"] = stringify_id(msg.get("distinct_id", None))
+
+        msg = clean(msg)
+        self.log.debug("queueing: %s", msg)
+
+        # if send is False, return msg as if it was successfully queued
+        if not self.send:
+            return True, msg
+
+        if self.sync_mode:
+            self.log.debug("enqueued with blocking %s.", msg["event"])
+            batch_post(self.api_key, self.host, gzip=self.gzip, timeout=self.timeout, batch=[msg])
+
+            return True, msg
+
+        try:
+            self.queue.put(msg, block=False)
+            self.log.debug("enqueued %s.", msg["event"])
+            return True, msg
+        except queue.Full:
+            self.log.warning("analytics-python queue is full")
+            return False, msg
+
+    def flush(self):
+        """Forces a flush from the internal queue to the server"""
+        queue = self.queue
+        size = queue.qsize()
+        queue.join()
+        # Note that this message may not be precise, because of threading.
+        self.log.debug("successfully flushed about %s items.", size)
+
+    def join(self):
+        """Ends the consumer thread once the queue is empty.
+        Blocks execution until finished
+        """
+        for consumer in self.consumers:
+            consumer.pause()
+            try:
+                consumer.join()
+            except RuntimeError:
+                # consumer thread has not started
+                pass
+
+    def shutdown(self):
+        """Flush all messages and cleanly shutdown the client"""
+        self.flush()
+        self.join()
 
 
 def require(name, field, data_type):
@@ -80,3 +324,11 @@ def require(name, field, data_type):
     if not isinstance(field, data_type):
         msg = "{0} must have {1}, got: {2}".format(name, data_type, field)
         raise AssertionError(msg)
+
+
+def stringify_id(val):
+    if val is None:
+        return None
+    if isinstance(val, string_types):
+        return val
+    return str(val)
