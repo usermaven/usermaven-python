@@ -13,7 +13,7 @@ from usermaven.version import VERSION
 
 _session = requests.sessions.Session()
 
-DEFAULT_HOST = "https://app.usermaven.com"
+DEFAULT_HOST = "https://eventcollectors.usermaven.com"
 USER_AGENT = "usermaven-python/" + VERSION
 
 

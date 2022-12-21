@@ -1,16 +1,14 @@
 import atexit
 import logging
 import numbers
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
-from dateutil.tz import tzutc
 from six import string_types
 
 from usermaven.consumer import Consumer
 from usermaven.request import batch_post
-from usermaven.utils import clean, guess_timezone
-from usermaven.version import VERSION
+from usermaven.utils import clean
 
 try:
     import queue
@@ -19,7 +17,6 @@ except ImportError:
 
 
 ID_TYPES = (numbers.Number, string_types, UUID)
-MAX_DICT_SIZE = 50_000
 
 
 class Client(object):
@@ -102,175 +99,46 @@ class Client(object):
                 if send:
                     consumer.start()
 
-    def identify(self, distinct_id=None, properties=None, context=None, timestamp=None, uuid=None):
-        properties = properties or {}
-        context = context or {}
-        require("distinct_id", distinct_id, ID_TYPES)
-        require("properties", properties, dict)
+
+    def identify(self, project_id, user, event_id="", company={}, src="", event_type="identify"):
+        require("project_id", project_id, ID_TYPES)
+        require("user", user, dict)
 
         msg = {
-            "timestamp": timestamp,
-            "context": context,
-            "distinct_id": distinct_id,
-            "$set": properties,
-            "event": "$identify",
-            "uuid": uuid,
+            "project_id": project_id,
+            "event_id": event_id,
+            "user": user,
+            "utc_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "local_tz_offset": (datetime.now() - datetime.utcnow()).total_seconds() / 60,
+            "company": company,
+            "api_key": self.api_key,
+            "src": src,
+            "event_type": event_type
         }
 
         return self._enqueue(msg)
 
-    def track(
-        self,
-        distinct_id=None,
-        event=None,
-        properties=None,
-        context=None,
-        timestamp=None,
-        uuid=None,
-        groups=None,
-    ):
-        properties = properties or {}
-        context = context or {}
-        require("distinct_id", distinct_id, ID_TYPES)
-        require("properties", properties, dict)
-        require("event", event, string_types)
+    def track(self, project_id, user, event_id="", company={}, src="", event_type=""):
+        require("project_id", project_id, ID_TYPES)
+        require("user", user, dict)
 
         msg = {
-            "properties": properties,
-            "timestamp": timestamp,
-            "context": context,
-            "distinct_id": distinct_id,
-            "event": event,
-            "uuid": uuid,
-        }
-
-        if groups:
-            require("groups", groups, dict)
-            msg["properties"]["$groups"] = groups
-
-        return self._enqueue(msg)
-
-    def set(self, distinct_id=None, properties=None, context=None, timestamp=None, uuid=None):
-        properties = properties or {}
-        context = context or {}
-        require("distinct_id", distinct_id, ID_TYPES)
-        require("properties", properties, dict)
-
-        msg = {
-            "timestamp": timestamp,
-            "context": context,
-            "distinct_id": distinct_id,
-            "$set": properties,
-            "event": "$set",
-            "uuid": uuid,
+            "project_id": project_id,
+            "event_id": event_id,
+            "user": user,
+            "utc_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "local_tz_offset": (datetime.now() - datetime.utcnow()).total_seconds() / 60,
+            "company": company,
+            "api_key": self.api_key,
+            "src": src,
+            "event_type": event_type
         }
 
         return self._enqueue(msg)
 
-    def set_once(self, distinct_id=None, properties=None, context=None, timestamp=None, uuid=None):
-        properties = properties or {}
-        context = context or {}
-        require("distinct_id", distinct_id, ID_TYPES)
-        require("properties", properties, dict)
-
-        msg = {
-            "timestamp": timestamp,
-            "context": context,
-            "distinct_id": distinct_id,
-            "$set_once": properties,
-            "event": "$set_once",
-            "uuid": uuid,
-        }
-
-        return self._enqueue(msg)
-
-    def group_identify(self, group_type=None, group_key=None, properties=None, context=None, timestamp=None, uuid=None):
-        properties = properties or {}
-        context = context or {}
-        require("group_type", group_type, ID_TYPES)
-        require("group_key", group_key, ID_TYPES)
-        require("properties", properties, dict)
-
-        msg = {
-            "event": "$groupidentify",
-            "properties": {
-                "$group_type": group_type,
-                "$group_key": group_key,
-                "$group_set": properties,
-            },
-            "distinct_id": "${}_{}".format(group_type, group_key),
-            "timestamp": timestamp,
-            "context": context,
-            "uuid": uuid,
-        }
-
-        return self._enqueue(msg)
-
-    def alias(self, previous_id=None, distinct_id=None, context=None, timestamp=None, uuid=None):
-        context = context or {}
-
-        require("previous_id", previous_id, ID_TYPES)
-        require("distinct_id", distinct_id, ID_TYPES)
-
-        msg = {
-            "properties": {
-                "distinct_id": previous_id,
-                "alias": distinct_id,
-            },
-            "timestamp": timestamp,
-            "context": context,
-            "event": "$create_alias",
-            "distinct_id": previous_id,
-        }
-
-        return self._enqueue(msg)
-
-    def page(self, distinct_id=None, url=None, properties=None, context=None, timestamp=None, uuid=None):
-        properties = properties or {}
-        context = context or {}
-
-        require("distinct_id", distinct_id, ID_TYPES)
-        require("properties", properties, dict)
-
-        require("url", url, string_types)
-        properties["$current_url"] = url
-
-        msg = {
-            "event": "$pageview",
-            "properties": properties,
-            "timestamp": timestamp,
-            "context": context,
-            "distinct_id": distinct_id,
-            "uuid": uuid,
-        }
-
-        return self._enqueue(msg)
 
     def _enqueue(self, msg):
         """Push a new `msg` onto the queue, return `(success, msg)`"""
-        timestamp = msg["timestamp"]
-        if timestamp is None:
-            timestamp = datetime.utcnow().replace(tzinfo=tzutc())
-
-        require("timestamp", timestamp, datetime)
-        require("context", msg["context"], dict)
-
-        # add common
-        timestamp = guess_timezone(timestamp)
-        msg["timestamp"] = timestamp.isoformat()
-
-        # only send if "uuid" is truthy
-        if "uuid" in msg:
-            uuid = msg.pop("uuid")
-            if uuid:
-                msg["uuid"] = stringify_id(uuid)
-
-        if not msg.get("properties"):
-            msg["properties"] = {}
-        msg["properties"]["$lib"] = "usermaven-python"
-        msg["properties"]["$lib_version"] = VERSION
-
-        msg["distinct_id"] = stringify_id(msg.get("distinct_id", None))
 
         msg = clean(msg)
         self.log.debug("queueing: %s", msg)
@@ -324,11 +192,3 @@ def require(name, field, data_type):
     if not isinstance(field, data_type):
         msg = "{0} must have {1}, got: {2}".format(name, data_type, field)
         raise AssertionError(msg)
-
-
-def stringify_id(val):
-    if val is None:
-        return None
-    if isinstance(val, string_types):
-        return val
-    return str(val)
