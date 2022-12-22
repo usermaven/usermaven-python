@@ -140,6 +140,8 @@ class Client(object):
     def _enqueue(self, msg):
         """Push a new `msg` onto the queue, return `(success, msg)`"""
 
+        msg["project_id"] = stringify_id(msg.get("project_id", None))
+
         msg = clean(msg)
         self.log.debug("queueing: %s", msg)
 
@@ -148,14 +150,14 @@ class Client(object):
             return True, msg
 
         if self.sync_mode:
-            self.log.debug("enqueued with blocking %s.", msg["event"])
+            self.log.debug("enqueued with blocking %s.", msg["user"])
             batch_post(self.api_key, self.host, gzip=self.gzip, timeout=self.timeout, batch=[msg])
 
             return True, msg
 
         try:
             self.queue.put(msg, block=False)
-            self.log.debug("enqueued %s.", msg["event"])
+            self.log.debug("enqueued %s.", msg["user"])
             return True, msg
         except queue.Full:
             self.log.warning("analytics-python queue is full")
@@ -192,3 +194,11 @@ def require(name, field, data_type):
     if not isinstance(field, data_type):
         msg = "{0} must have {1}, got: {2}".format(name, data_type, field)
         raise AssertionError(msg)
+
+
+def stringify_id(val):
+    if val is None:
+        return None
+    if isinstance(val, string_types):
+        return val
+    return str(val)
