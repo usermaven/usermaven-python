@@ -13,8 +13,7 @@ from usermaven.version import VERSION
 
 _session = requests.sessions.Session()
 
-DEFAULT_HOST = "https://app.posthog.com"
-# DEFAULT_HOST = "https://eventcollectors.usermaven.com"
+DEFAULT_HOST = "https://eventcollectors.usermaven.com"
 USER_AGENT = "usermaven-python/" + VERSION
 
 
@@ -26,7 +25,6 @@ def post(
     body = kwargs
     body["sentAt"] = datetime.utcnow().replace(tzinfo=tzutc()).isoformat()
     url = remove_trailing_slash(host or DEFAULT_HOST) + path
-    body["api_key"] = api_key
     data = json.dumps(body, cls=DatetimeSerializer)
     log.debug("making request: %s", data)
     headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
@@ -39,7 +37,7 @@ def post(
             gz.write(data.encode("utf-8"))
         data = buf.getvalue()
 
-    res = _session.post(url, data=data, headers=headers, timeout=timeout)
+    res = _session.post(url, params={'token': api_key}, data=data, headers=headers, timeout=timeout)
 
     if res.status_code == 200:
         log.debug("data uploaded successfully")
@@ -66,7 +64,7 @@ def batch_post(
     api_key: str, host: Optional[str] = None, gzip: bool = False, timeout: int = 15, **kwargs
 ) -> requests.Response:
     """Post the `kwargs` to the batch API endpoint for events"""
-    res = post(api_key, host, "/batch/", gzip, timeout, **kwargs)
+    res = post(api_key, host, "/api/v1/s2s/event/", gzip, timeout, **kwargs)
     return _process_response(res, success_message="data uploaded successfully", return_json=False)
 
 

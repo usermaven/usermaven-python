@@ -7,7 +7,7 @@ import six
 
 from usermaven import utils
 
-TEST_API_KEY = "kOOlRy2QlMY9jHZQv0bKz0FZyazBUoY8Arj0lFVNjs4"
+TEST_API_KEY = "3a4a78a9-0e66-4c8b-aba9-5bbbd6aab7d3"
 FAKE_TEST_API_KEY = "random_key_for_testing"
 
 

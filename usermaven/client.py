@@ -150,14 +150,14 @@ class Client(object):
             return True, msg
 
         if self.sync_mode:
-            self.log.debug("enqueued with blocking %s.", msg["user"])
+            self.log.debug("enqueued with blocking %s.", msg["event_type"])
             batch_post(self.api_key, self.host, gzip=self.gzip, timeout=self.timeout, batch=[msg])
 
             return True, msg
 
         try:
             self.queue.put(msg, block=False)
-            self.log.debug("enqueued %s.", msg["user"])
+            self.log.debug("enqueued %s.", msg["event_type"])
             return True, msg
         except queue.Full:
             self.log.warning("analytics-python queue is full")

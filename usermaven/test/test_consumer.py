@@ -43,9 +43,8 @@ class TestConsumer(unittest.TestCase):
     def test_upload(self):
         q = Queue()
         consumer = Consumer(q, TEST_API_KEY)
-        # track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-        #          "project_id": "project_id"}
-        track = {"type": "track", "event": "python event", "distinct_id": "distinct_id"}
+        track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                 "project_id": "project_id"}
         q.put(track)
         success = consumer.upload()
         self.assertTrue(success)
@@ -60,9 +59,8 @@ class TestConsumer(unittest.TestCase):
         with mock.patch("usermaven.consumer.batch_post") as mock_post:
             consumer.start()
             for i in range(0, 3):
-                # track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                #          "event_id": "event_%d" % i, "project_id": "project_id"}
-                track = {"type": "track", "event": "python event %d" % i, "distinct_id": "distinct_id"}
+                track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                         "event_id": "event_%d" % i, "project_id": "project_id"}
                 q.put(track)
                 time.sleep(flush_interval * 1.1)
             self.assertEqual(mock_post.call_count, 3)
@@ -77,18 +75,16 @@ class TestConsumer(unittest.TestCase):
         with mock.patch("usermaven.consumer.batch_post") as mock_post:
             consumer.start()
             for i in range(0, flush_at * 2):
-                # track = {"type": "track", "user":{"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                #          "event_id": "event_%d" % i, "project_id": "project_id"}
-                track = {"type": "track", "event": "python event %d" % i, "distinct_id": "distinct_id"}
+                track = {"type": "track", "user":{"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                         "event_id": "event_%d" % i, "project_id": "project_id"}
                 q.put(track)
             time.sleep(flush_interval * 1.1)
             self.assertEqual(mock_post.call_count, 2)
 
     def test_request(self):
         consumer = Consumer(None, TEST_API_KEY)
-        # track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-        #          "project_id": "project_id"}
-        track = {"type": "track", "event": "python event", "distinct_id": "distinct_id"}
+        track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                 "project_id": "project_id"}
         consumer.request([track])
 
     def _test_request_retry(self, consumer, expected_exception, exception_count):
@@ -100,9 +96,8 @@ class TestConsumer(unittest.TestCase):
         mock_post.call_count = 0
 
         with mock.patch("usermaven.consumer.batch_post", mock.Mock(side_effect=mock_post)):
-            # track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-            #          "project_id": "project_id"}
-            track = {"type": "track", "event": "python event", "distinct_id": "distinct_id"}
+            track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                     "project_id": "project_id"}
             # request() should succeed if the number of exceptions raised is
             # less than the retries paramater.
             if exception_count <= consumer.retries:
@@ -155,9 +150,8 @@ class TestConsumer(unittest.TestCase):
     def test_max_batch_size(self):
         q = Queue()
         consumer = Consumer(q, TEST_API_KEY, flush_at=100000, flush_interval=3)
-        # track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-        #          "project_id": "project_id"}
-        track = {"type": "track", "event": "python event", "distinct_id": "distinct_id"}
+        track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                 "project_id": "project_id"}
         msg_size = len(json.dumps(track).encode())
         # number of messages in a maximum-size batch
         n_msgs = int(475000 / msg_size)

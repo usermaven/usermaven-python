@@ -10,10 +10,9 @@ from usermaven.test.test_utils import TEST_API_KEY
 
 class TestRequests(unittest.TestCase):
     def test_valid_request(self):
-        # res = batch_post(TEST_API_KEY,
-        #                  batch=[{"project_id": "project_id", "user": {"email": "johndoe@gmail.com", "name": "John Doe",
-        #                                                               "id": "123456789"}, "type": "track"}])
-        res = batch_post(TEST_API_KEY, batch=[{"distinct_id": "distinct_id", "event": "python event", "type": "track"}])
+        res = batch_post(TEST_API_KEY,
+                         batch=[{"project_id": "project_id", "user": {"email": "johndoe@gmail.com", "name": "John Doe",
+                                                                      "id": "123456789"}, "type": "track"}])
         self.assertEqual(res.status_code, 200)
 
     def test_invalid_request_error(self):
@@ -35,23 +34,17 @@ class TestRequests(unittest.TestCase):
         self.assertEqual(result, expected)
 
     def test_should_not_timeout(self):
-        # res = batch_post(
-        #     TEST_API_KEY, batch=[{"project_id": "project_id",
-        #                           "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-        #                           "type": "track"}], timeout=15
-        # )
         res = batch_post(
-            TEST_API_KEY, batch=[{"distinct_id": "distinct_id", "event": "python event", "type": "track"}], timeout=15
+            TEST_API_KEY, batch=[{"project_id": "project_id",
+                                  "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                                  "type": "track"}], timeout=15
         )
         self.assertEqual(res.status_code, 200)
 
     def test_should_timeout(self):
         with self.assertRaises(requests.ReadTimeout):
-            # batch_post(
-            #     "key", batch=[{"project_id": "project_id",
-            #                    "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-            #                    "type": "track"}], timeout=0.0001
-            # )
             batch_post(
-                "key",  batch=[{"distinct_id": "distinct_id", "event": "python event", "type": "track"}], timeout=0.0001
+                "key", batch=[{"project_id": "project_id",
+                               "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
+                               "type": "track"}], timeout=0.0001
             )
