@@ -11,7 +11,7 @@ except ImportError:
 
 from usermaven.consumer import MAX_MSG_SIZE, Consumer
 from usermaven.request import APIError
-from usermaven.test.test_utils import TEST_API_KEY
+from usermaven.test.test_utils import TEST_SERVER_TOKEN
 
 
 class TestConsumer(unittest.TestCase):
@@ -42,9 +42,10 @@ class TestConsumer(unittest.TestCase):
 
     def test_upload(self):
         q = Queue()
-        consumer = Consumer(q, TEST_API_KEY)
-        track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                 "project_id": "project_id"}
+        consumer = Consumer(q, TEST_SERVER_TOKEN)
+        track = {"type": "track", "user": {"anonymous_id": "", "id": "", "email": "", "created_at": "",
+                                           "first_name": "", "last_name": "", "is_integrated_with_pixel": True},
+                 "api_key": "api_key"}
         q.put(track)
         success = consumer.upload()
         self.assertTrue(success)
@@ -55,12 +56,13 @@ class TestConsumer(unittest.TestCase):
         # The consumer should upload _n_ times.
         q = Queue()
         flush_interval = 0.3
-        consumer = Consumer(q, TEST_API_KEY, flush_at=10, flush_interval=flush_interval)
+        consumer = Consumer(q, TEST_SERVER_TOKEN, flush_at=10, flush_interval=flush_interval)
         with mock.patch("usermaven.consumer.batch_post") as mock_post:
             consumer.start()
             for i in range(0, 3):
-                track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                         "event_id": "event_%d" % i, "project_id": "project_id"}
+                track = {"type": "track", "user": {"anonymous_id": "", "id": "", "email": "", "created_at": "",
+                                                   "first_name": "", "last_name": "", "is_integrated_with_pixel": True},
+                         "api_key": "api_key", "event_id": "event_%d" % i}
                 q.put(track)
                 time.sleep(flush_interval * 1.1)
             self.assertEqual(mock_post.call_count, 3)
@@ -71,20 +73,22 @@ class TestConsumer(unittest.TestCase):
         q = Queue()
         flush_interval = 0.5
         flush_at = 10
-        consumer = Consumer(q, TEST_API_KEY, flush_at=flush_at, flush_interval=flush_interval)
+        consumer = Consumer(q, TEST_SERVER_TOKEN, flush_at=flush_at, flush_interval=flush_interval)
         with mock.patch("usermaven.consumer.batch_post") as mock_post:
             consumer.start()
             for i in range(0, flush_at * 2):
-                track = {"type": "track", "user":{"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                         "event_id": "event_%d" % i, "project_id": "project_id"}
+                track = {"type": "track", "user": {"anonymous_id": "", "id": "", "email": "", "created_at": "",
+                                                   "first_name": "", "last_name": "", "is_integrated_with_pixel": True},
+                         "api_key": "api_key", "event_id": "event_%d" % i}
                 q.put(track)
             time.sleep(flush_interval * 1.1)
             self.assertEqual(mock_post.call_count, 2)
 
     def test_request(self):
-        consumer = Consumer(None, TEST_API_KEY)
-        track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                 "project_id": "project_id"}
+        consumer = Consumer(None, TEST_SERVER_TOKEN)
+        track = {"type": "track", "user": {"anonymous_id": "", "id": "", "email": "", "created_at": "",
+                                           "first_name": "", "last_name": "", "is_integrated_with_pixel": True},
+                         "api_key": "api_key"}
         consumer.request([track])
 
     def _test_request_retry(self, consumer, expected_exception, exception_count):
@@ -96,8 +100,9 @@ class TestConsumer(unittest.TestCase):
         mock_post.call_count = 0
 
         with mock.patch("usermaven.consumer.batch_post", mock.Mock(side_effect=mock_post)):
-            track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                     "project_id": "project_id"}
+            track = {"type": "track", "user": {"anonymous_id": "", "id": "", "email": "", "created_at": "",
+                                           "first_name": "", "last_name": "", "is_integrated_with_pixel": True},
+                             "api_key": "api_key"}
             # request() should succeed if the number of exceptions raised is
             # less than the retries paramater.
             if exception_count <= consumer.retries:
@@ -117,19 +122,19 @@ class TestConsumer(unittest.TestCase):
 
     def test_request_retry(self):
         # we should retry on general errors
-        consumer = Consumer(None, TEST_API_KEY)
+        consumer = Consumer(None, TEST_SERVER_TOKEN)
         self._test_request_retry(consumer, Exception("generic exception"), 2)
 
         # we should retry on server errors
-        consumer = Consumer(None, TEST_API_KEY)
+        consumer = Consumer(None, TEST_SERVER_TOKEN)
         self._test_request_retry(consumer, APIError(500, "Internal Server Error"), 2)
 
         # we should retry on HTTP 429 errors
-        consumer = Consumer(None, TEST_API_KEY)
+        consumer = Consumer(None, TEST_SERVER_TOKEN)
         self._test_request_retry(consumer, APIError(429, "Too Many Requests"), 2)
 
         # we should NOT retry on other client errors
-        consumer = Consumer(None, TEST_API_KEY)
+        consumer = Consumer(None, TEST_SERVER_TOKEN)
         api_error = APIError(400, "Client Errors")
         try:
             self._test_request_retry(consumer, api_error, 1)
@@ -139,19 +144,21 @@ class TestConsumer(unittest.TestCase):
             self.fail("request() should not retry on client errors")
 
         # test for number of exceptions raise > retries value
-        consumer = Consumer(None, TEST_API_KEY, retries=3)
+        consumer = Consumer(None, TEST_SERVER_TOKEN, retries=3)
         self._test_request_retry(consumer, APIError(500, "Internal Server Error"), 3)
 
     def test_pause(self):
-        consumer = Consumer(None, TEST_API_KEY)
+        consumer = Consumer(None, TEST_SERVER_TOKEN)
         consumer.pause()
         self.assertFalse(consumer.running)
 
     def test_max_batch_size(self):
         q = Queue()
-        consumer = Consumer(q, TEST_API_KEY, flush_at=100000, flush_interval=3)
-        track = {"type": "track", "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                 "project_id": "project_id"}
+        consumer = Consumer(q, TEST_SERVER_TOKEN, flush_at=100000, flush_interval=3)
+        track = {"type": "track", "api_key": "api_key", "user": {"anonymous_id": "", "id": "", "email": "",
+                                                                 "created_at": "", "first_name": "", "last_name": "",
+                                                                 "is_integrated_with_pixel": True}
+                 }
         msg_size = len(json.dumps(track).encode())
         # number of messages in a maximum-size batch
         n_msgs = int(475000 / msg_size)

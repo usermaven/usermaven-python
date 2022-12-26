@@ -1,12 +1,9 @@
 import json
 import logging
 from datetime import date, datetime
-from gzip import GzipFile
-from io import BytesIO
 from typing import Any, Optional, Union
 
 import requests
-from dateutil.tz import tzutc
 
 from usermaven.utils import remove_trailing_slash
 from usermaven.version import VERSION
@@ -18,26 +15,17 @@ USER_AGENT = "usermaven-python/" + VERSION
 
 
 def post(
-    api_key: str, host: Optional[str] = None, path=None, gzip: bool = False, timeout: int = 15, **kwargs
+    server_token: str, host: Optional[str] = None, path=None, timeout: int = 15, **kwargs
 ) -> requests.Response:
     """Post the `kwargs` to the API"""
     log = logging.getLogger("usermaven")
     body = kwargs
-    body["sentAt"] = datetime.utcnow().replace(tzinfo=tzutc()).isoformat()
     url = remove_trailing_slash(host or DEFAULT_HOST) + path
-    data = json.dumps(body, cls=DatetimeSerializer)
+    data = body["batch"]
     log.debug("making request: %s", data)
     headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
-    if gzip:
-        headers["Content-Encoding"] = "gzip"
-        buf = BytesIO()
-        with GzipFile(fileobj=buf, mode="w") as gz:
-            # 'data' was produced by json.dumps(),
-            # whose default encoding is utf-8.
-            gz.write(data.encode("utf-8"))
-        data = buf.getvalue()
 
-    res = _session.post(url, params={'token': api_key}, data=data, headers=headers, timeout=timeout)
+    res = _session.post(url, params={'token': server_token}, json=data, headers=headers, timeout=timeout)
 
     if res.status_code == 200:
         log.debug("data uploaded successfully")
@@ -61,10 +49,10 @@ def _process_response(
 
 
 def batch_post(
-    api_key: str, host: Optional[str] = None, gzip: bool = False, timeout: int = 15, **kwargs
+    server_token: str, host: Optional[str] = None, timeout: int = 15, **kwargs
 ) -> requests.Response:
     """Post the `kwargs` to the batch API endpoint for events"""
-    res = post(api_key, host, "/api/v1/s2s/event/", gzip, timeout, **kwargs)
+    res = post(server_token, host, "/api/v1/s2s/event/", timeout, **kwargs)
     return _process_response(res, success_message="data uploaded successfully", return_json=False)
 
 

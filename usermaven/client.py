@@ -1,7 +1,8 @@
 import atexit
 import logging
 import numbers
-from datetime import datetime
+import random
+import string
 from uuid import UUID
 
 from six import string_types
@@ -26,7 +27,7 @@ class Client(object):
 
     def __init__(
         self,
-        api_key=None,
+        server_token=None,
         host=None,
         debug=False,
         max_queue_size=10000,
@@ -34,33 +35,27 @@ class Client(object):
         on_error=None,
         flush_at=100,
         flush_interval=0.5,
-        gzip=False,
         max_retries=3,
         sync_mode=False,
         timeout=15,
         thread=1,
-        personal_api_key=None,
-        project_api_key=None,
     ):
 
         self.queue = queue.Queue(max_queue_size)
 
-        # api_key: This should be the Team API Key (token), public
-        self.api_key = project_api_key or api_key
+        # server_token: This should be the server secret token used for authentication when sending the events.
+        self.server_token = server_token
 
-        require("api_key", self.api_key, string_types)
+        require("server_token", self.server_token, string_types)
 
         self.on_error = on_error
         self.debug = debug
         self.send = send
         self.sync_mode = sync_mode
         self.host = host
-        self.gzip = gzip
         self.timeout = timeout
         self.group_type_mapping = None
 
-        # personal_api_key: This should be a generated Personal API Key, private
-        self.personal_api_key = personal_api_key
         if debug:
             # Ensures that debug level messages are logged when debug mode is on.
             # Otherwise, defaults to WARNING level. See https://docs.python.org/3/howto/logging.html#what-happens-if-no-configuration-is-provided
@@ -84,12 +79,11 @@ class Client(object):
                 self.consumers = []
                 consumer = Consumer(
                     self.queue,
-                    self.api_key,
+                    self.server_token,
                     host=host,
                     on_error=on_error,
                     flush_at=flush_at,
                     flush_interval=flush_interval,
-                    gzip=gzip,
                     retries=max_retries,
                     timeout=timeout,
                 )
@@ -100,39 +94,79 @@ class Client(object):
                     consumer.start()
 
 
-    def identify(self, project_id, user, event_id="", company={}, src="", event_type="identify"):
-        require("project_id", project_id, ID_TYPES)
+    def identify(self, api_key, user, event_id="", ids= {}, company={}, src="", event_type="user_identify", custom={}):
+        require("api_key", api_key, ID_TYPES)
         require("user", user, dict)
+        require("user_id", user["id"], ID_TYPES)
+        require("user_email", user["email"], string_types)
+        require("user_created_at", user["created_at"], string_types)
 
         msg = {
-            "project_id": project_id,
+            "api_key": api_key,
             "event_id": event_id,
-            "user": user,
-            "utc_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            "local_tz_offset": (datetime.now() - datetime.utcnow()).total_seconds() / 60,
-            "company": company,
-            "api_key": self.api_key,
+            "ids": ids,
+            "user": {
+                "anonymous_id": generate_id(),
+                "id": user["id"],
+                "email": user["email"],
+                "created_at": user["created_at"],
+            },
+            "screen_resolution": "0",
             "src": src,
             "event_type": event_type
         }
+
+        if company:
+            require("company", company, dict)
+            require("company_id", company["id"], ID_TYPES)
+            require("company_name", company["name"], string_types)
+            require("company_created_at", company["created_at"], string_types)
+            msg["company"] = {
+                "id": company["id"],
+                "name": company["name"],
+                "created_at": company["created_at"]
+            }
+        if custom:
+            require("custom", custom, dict)
+            msg["custom"] = custom
 
         return self._enqueue(msg)
 
-    def track(self, project_id, user, event_id="", company={}, src="", event_type=""):
-        require("project_id", project_id, ID_TYPES)
+    def track(self, api_key, user, ids={}, event_id="", company={}, src="", event_type="", custom={}):
+        require("api_key", api_key, ID_TYPES)
         require("user", user, dict)
+        require("user_id", user["id"], ID_TYPES)
+        require("user_email", user["email"], string_types)
+        require("user_created_at", user["created_at"], string_types)
 
         msg = {
-            "project_id": project_id,
+            "api_key": api_key,
             "event_id": event_id,
-            "user": user,
-            "utc_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            "local_tz_offset": (datetime.now() - datetime.utcnow()).total_seconds() / 60,
-            "company": company,
-            "api_key": self.api_key,
+            "ids": ids,
+            "user": {
+                "anonymous_id": generate_id(),
+                "id": user["id"],
+                "email": user["email"],
+                "created_at": user["created_at"],
+            },
+            "screen_resolution": "0",
             "src": src,
             "event_type": event_type
         }
+
+        if company:
+            require("company", company, dict)
+            require("company_id", company["id"], ID_TYPES)
+            require("company_name", company["name"], string_types)
+            require("company_created_at", company["created_at"], string_types)
+            msg["company"] = {
+                "id": company["id"],
+                "name": company["name"],
+                "created_at": company["created_at"]
+            }
+        if custom:
+            require("custom", custom, dict)
+            msg["custom"] = custom
 
         return self._enqueue(msg)
 
@@ -140,7 +174,7 @@ class Client(object):
     def _enqueue(self, msg):
         """Push a new `msg` onto the queue, return `(success, msg)`"""
 
-        msg["project_id"] = stringify_id(msg.get("project_id", None))
+        msg["api_key"] = stringify_id(msg.get("api_key", None))
 
         msg = clean(msg)
         self.log.debug("queueing: %s", msg)
@@ -151,7 +185,7 @@ class Client(object):
 
         if self.sync_mode:
             self.log.debug("enqueued with blocking %s.", msg["event_type"])
-            batch_post(self.api_key, self.host, gzip=self.gzip, timeout=self.timeout, batch=[msg])
+            batch_post(self.server_token, self.host, timeout=self.timeout, batch=[msg])
 
             return True, msg
 
@@ -202,3 +236,7 @@ def stringify_id(val):
     if isinstance(val, string_types):
         return val
     return str(val)
+
+
+def generate_id():
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))

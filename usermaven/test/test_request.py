@@ -5,14 +5,15 @@ from datetime import date, datetime
 import requests
 
 from usermaven.request import DatetimeSerializer, batch_post
-from usermaven.test.test_utils import TEST_API_KEY
+from usermaven.test.test_utils import TEST_SERVER_TOKEN
 
 
 class TestRequests(unittest.TestCase):
     def test_valid_request(self):
-        res = batch_post(TEST_API_KEY,
-                         batch=[{"project_id": "project_id", "user": {"email": "johndoe@gmail.com", "name": "John Doe",
-                                                                      "id": "123456789"}, "type": "track"}])
+        res = batch_post(TEST_SERVER_TOKEN,
+                         batch=[{"type": "track", "user": {"anonymous_id": "", "id": "", "email": "", "created_at": "",
+                                           "first_name": "", "last_name": "", "is_integrated_with_pixel": True},
+                                 "api_key": "api_key"}])
         self.assertEqual(res.status_code, 200)
 
     def test_invalid_request_error(self):
@@ -35,16 +36,16 @@ class TestRequests(unittest.TestCase):
 
     def test_should_not_timeout(self):
         res = batch_post(
-            TEST_API_KEY, batch=[{"project_id": "project_id",
-                                  "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                                  "type": "track"}], timeout=15
-        )
+            TEST_SERVER_TOKEN, batch=[{"type": "track", "user": {"anonymous_id": "", "id": "", "email": "",
+                                                                 "created_at": "", "first_name": "", "last_name": "",
+                                                                 "is_integrated_with_pixel": True},
+                                       "api_key": "api_key"}], timeout=15)
         self.assertEqual(res.status_code, 200)
 
     def test_should_timeout(self):
         with self.assertRaises(requests.ReadTimeout):
             batch_post(
-                "key", batch=[{"project_id": "project_id",
-                               "user": {"email": "johndoe@gmail.com", "name": "John Doe", "id": "123456789"},
-                               "type": "track"}], timeout=0.0001
-            )
+                "key", batch=[{"type": "track", "user": {"anonymous_id": "", "id": "", "email": "", "created_at": "",
+                                                         "first_name": "", "last_name": "",
+                                                         "is_integrated_with_pixel": True}, "api_key": "api_key"}],
+                timeout=0.0001)
