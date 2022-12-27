@@ -27,6 +27,7 @@ class Consumer(Thread):
     def __init__(
         self,
         queue,
+        api_key,
         server_token,
         flush_at=100,
         host=None,
@@ -41,6 +42,7 @@ class Consumer(Thread):
         self.daemon = True
         self.flush_at = flush_at
         self.flush_interval = flush_interval
+        self.api_key = api_key
         self.server_token = server_token
         self.host = host
         self.on_error = on_error
@@ -131,6 +133,6 @@ class Consumer(Thread):
 
         @backoff.on_exception(backoff.expo, Exception, max_tries=self.retries + 1, giveup=fatal_exception)
         def send_request():
-            batch_post(self.server_token, self.host, timeout=self.timeout, batch=batch)
+            batch_post(self.api_key, self.server_token, self.host, timeout=self.timeout, batch=batch)
 
         send_request()

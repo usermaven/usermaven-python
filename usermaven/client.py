@@ -27,6 +27,7 @@ class Client(object):
 
     def __init__(
         self,
+        api_key=None,
         server_token=None,
         host=None,
         debug=False,
@@ -43,9 +44,13 @@ class Client(object):
 
         self.queue = queue.Queue(max_queue_size)
 
-        # server_token: This should be the server secret token used for authentication when sending the events.
-        self.server_token = server_token
+        # api_key: This is the project_id/workspace_id which is required for authentication
+        self.api_key = stringify_id(api_key)
 
+        # server_token: This should be the server secret token used for authentication when sending the events.
+        self.server_token = stringify_id(server_token)
+
+        require("api_key", self.api_key, string_types)
         require("server_token", self.server_token, string_types)
 
         self.on_error = on_error
@@ -79,6 +84,7 @@ class Client(object):
                 self.consumers = []
                 consumer = Consumer(
                     self.queue,
+                    self.api_key,
                     self.server_token,
                     host=host,
                     on_error=on_error,
@@ -94,17 +100,17 @@ class Client(object):
                     consumer.start()
 
 
-    def identify(self, api_key, user, event_id="", ids= {}, company={}, src="", event_type="user_identify", custom={}):
-        require("api_key", api_key, ID_TYPES)
+    def identify(self, user, company={}, custom={}):
         require("user", user, dict)
         require("user_id", user["id"], ID_TYPES)
         require("user_email", user["email"], string_types)
         require("user_created_at", user["created_at"], string_types)
 
         msg = {
-            "api_key": api_key,
-            "event_id": event_id,
-            "ids": ids,
+            "api_key": self.api_key,
+            "event_id": "",
+            "event_type": "user_identify",
+            "ids": {},
             "user": {
                 "anonymous_id": generate_id(),
                 "id": user["id"],
@@ -112,8 +118,7 @@ class Client(object):
                 "created_at": user["created_at"],
             },
             "screen_resolution": "0",
-            "src": src,
-            "event_type": event_type
+            "src": "usermaven-python"
         }
 
         if company:
@@ -132,17 +137,17 @@ class Client(object):
 
         return self._enqueue(msg)
 
-    def track(self, api_key, user, ids={}, event_id="", company={}, src="", event_type="", custom={}):
-        require("api_key", api_key, ID_TYPES)
+    def track(self, event_type, user, company={}, event_attributes={}, custom={}):
         require("user", user, dict)
         require("user_id", user["id"], ID_TYPES)
         require("user_email", user["email"], string_types)
         require("user_created_at", user["created_at"], string_types)
 
         msg = {
-            "api_key": api_key,
-            "event_id": event_id,
-            "ids": ids,
+            "api_key": self.api_key,
+            "event_type": event_type,
+            "event_id": "",
+            "ids": {},
             "user": {
                 "anonymous_id": generate_id(),
                 "id": user["id"],
@@ -150,8 +155,8 @@ class Client(object):
                 "created_at": user["created_at"],
             },
             "screen_resolution": "0",
-            "src": src,
-            "event_type": event_type
+            "src": "usermaven-python",
+            "event_attributes": event_attributes
         }
 
         if company:
@@ -174,8 +179,6 @@ class Client(object):
     def _enqueue(self, msg):
         """Push a new `msg` onto the queue, return `(success, msg)`"""
 
-        msg["api_key"] = stringify_id(msg.get("api_key", None))
-
         msg = clean(msg)
         self.log.debug("queueing: %s", msg)
 
@@ -185,7 +188,7 @@ class Client(object):
 
         if self.sync_mode:
             self.log.debug("enqueued with blocking %s.", msg["event_type"])
-            batch_post(self.server_token, self.host, timeout=self.timeout, batch=[msg])
+            batch_post(self.api_key, self.server_token, self.host, timeout=self.timeout, batch=[msg])
 
             return True, msg
 

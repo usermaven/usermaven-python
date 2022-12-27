@@ -6,6 +6,7 @@ from usermaven.version import VERSION
 __version__ = VERSION
 
 """Settings."""
+api_key = None  # type: str
 server_token = None  # type: str
 host = None  # type: str
 on_error = None  # type: Callable
@@ -18,86 +19,72 @@ default_client = None
 
 
 def track(
-    api_key,        # type: str
-    user,           # type: Dict
-    ids,            # type: Optional[Dict]
-    event_id,       # type: Optional[str]
-    company={},     # type: Optional[Dict]
-    src="",         # type: Optional[str]
-    event_type="",  # type: Optional[str]
-    custom={}       # type: Optional[Dict]
+    event_type,           # type: str
+    user,                 # type: Dict
+    company={},           # type: Optional[Dict]
+    event_attributes={},  # type: Optional[Dict]
+    custom={}             # type: Optional[Dict]
 ):
     # type: (...) -> None
     """
-    Track allows you to track anything a user does within your system, which you can later use in Usermaven to find patterns in usage, work out which features to improve or where people are giving up.
+    Track allows you to track anything a user does within your system, which you can later use in Usermaven
+    to find patterns in usage, work out which features to improve or where people are giving up.
 
     A `track` call requires
-    - `api_key` which is your project id from which the call has been made
-    - `user` which is a dict of user properties
+    - `event_type` which defines what sort of event are you tracking from this call.
+    - `user` which is a dict of user properties. Email, id and created_at are required fields for the user object.
+    - We recommend using [verb] [noun], like `goal created` or `payment succeeded` to easily identify what your events
+    mean later on.
 
     Optionally you can submit
-    - `company`, which can be a dict with company properties
-    - `event_type`, which is the type of event you are tracking
-    - We recommend using [verb] [noun], like `goal created` or `payment succeeded` to easily identify what your events mean later on.
-    - `custom`, which is a dict of custom properties
+    - `company`, which is a dict with company properties. Name, id and created_at are required fields for the
+    company object.
+    - 'event_attributes', which is a dict that contain information about the event.
+    - `custom`, which is a dict of custom properties.
 
 
     For example:
     ```python
-    usermaven.track('api_key', {'email': 'john@gmail.com','id': '123', 'created_at': '2022'}, event_type= 'app opened')
-    usermaven.track('api_key', {'email': 'john@gmail.com','id': '123', 'created_at': '2022'}, event_id= "123-45",
-    event_type ='video watched')
+    usermaven.track('payment_succeeded', {'email': 'john@gmail.com','id': '123', 'created_at': '2022'})
+    usermaven.track('video_watched', {'email': 'john@gmail.com','id': '123', 'created_at': '2022'},
+    'event_attributes'={'video_title': 'demo', 'watched_at': '2022'})
 
-    usermaven.track('api_key', {'email': 'john@gmail.com','id': '123', 'created_at': '2022'}, event_id="123-45",
-     company={'name': 'Company Name', 'id': '1', created_at: '2022'}, event_type ='purchase')
+    usermaven.track('plan_purchased', {'email': 'john@gmail.com','id': '123', 'created_at': '2022'},
+     company={'name': 'Company Name', 'id': '1', created_at: '2022'}, event_attributes={'plan': 'premium'},
+     custom={'product': 'Usermaven'})
     ```
     """
     _proxy(
         "track",
-        api_key=api_key,
+        event_type= event_type,
         user=user,
-        ids=ids,
-        event_id=event_id,
         company=company,
-        src=src,
-        event_type=event_type,
+        event_attributes=event_attributes,
         custom=custom
     )
 
 
 def identify(
-    api_key,     # type: str
     user,        # type: Dict
-    ids,         # type: Optional[Dict]
-    event_id,    # type: Optional[str]
     company={},  # type: Optional[Dict]
-    src="",  # type: Optional[str]
-    event_type="user_identify",  # type: Optional[str]
-    custom={}  # type: Optional[Dict]
-
+    custom={}    # type: Optional[Dict]
 ):
     # type: (...) -> None
     """
-    Identify lets you add metadata on your users so you can more easily identify who they are in Usermaven, and even do things like segment users by these properties.
+    Identify lets you add data to the user so you can know who they are in Usermaven.
 
     An `identify` call requires
-    - `api_key` which is your project id from which the call has been made
-    - `user` which is a dict of user properties
+    - `user` which is a dict of user properties. Email, id and created_at are required fields for the user object.
 
     For example:
     ```python
-    usermaven.identify('api_key', {'email': 'john@gmail.com','id': '123', 'created_at': '2022'})
+    usermaven.identify({'email': 'john@gmail.com','id': '123', 'created_at': '2022'})
     ```
     """
     _proxy(
         "identify",
-        api_key=api_key,
         user=user,
-        ids=ids,
-        event_id=event_id,
         company=company,
-        src=src,
-        event_type=event_type,
         custom=custom
     )
 
@@ -125,6 +112,7 @@ def _proxy(method, *args, **kwargs):
         return None
     if not default_client:
         default_client = Client(
+            api_key,
             server_token,
             host=host,
             debug=debug,

@@ -15,7 +15,7 @@ USER_AGENT = "usermaven-python/" + VERSION
 
 
 def post(
-    server_token: str, host: Optional[str] = None, path=None, timeout: int = 15, **kwargs
+    api_key: str, server_token: str, host: Optional[str] = None, path=None, timeout: int = 15, **kwargs
 ) -> requests.Response:
     """Post the `kwargs` to the API"""
     log = logging.getLogger("usermaven")
@@ -24,8 +24,8 @@ def post(
     data = body["batch"]
     log.debug("making request: %s", data)
     headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
-
-    res = _session.post(url, params={'token': server_token}, json=data, headers=headers, timeout=timeout)
+    server_secret_key = api_key + "." + server_token
+    res = _session.post(url, params={'token': server_secret_key}, json=data, headers=headers, timeout=timeout)
 
     if res.status_code == 200:
         log.debug("data uploaded successfully")
@@ -49,10 +49,10 @@ def _process_response(
 
 
 def batch_post(
-    server_token: str, host: Optional[str] = None, timeout: int = 15, **kwargs
+    api_key: str, server_token: str, host: Optional[str] = None, timeout: int = 15, **kwargs
 ) -> requests.Response:
     """Post the `kwargs` to the batch API endpoint for events"""
-    res = post(server_token, host, "/api/v1/s2s/event/", timeout, **kwargs)
+    res = post(api_key, server_token, host, "/api/v1/s2s/event/", timeout, **kwargs)
     return _process_response(res, success_message="data uploaded successfully", return_json=False)
 
 
