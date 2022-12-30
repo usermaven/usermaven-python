@@ -6,12 +6,9 @@ from typing import Any, Optional, Union
 import requests
 
 from usermaven.utils import remove_trailing_slash
-from usermaven.version import VERSION
+from usermaven.settings import DEFAULT_HOST, USER_AGENT
 
 _session = requests.sessions.Session()
-
-DEFAULT_HOST = "https://eventcollectors.usermaven.com"
-USER_AGENT = "usermaven-python/" + VERSION
 
 
 def post(

@@ -6,17 +6,12 @@ import backoff
 import monotonic
 
 from usermaven.request import APIError, DatetimeSerializer, batch_post
+from usermaven.settings import MAX_MSG_SIZE, BATCH_SIZE_LIMIT
 
 try:
     from queue import Empty
 except ImportError:
     from Queue import Empty
-
-MAX_MSG_SIZE = 32 << 10
-
-# Our servers only accept batches less than 500KB. Here limit is set slightly
-# lower to leave space for extra data that will be added later, eg. "sentAt".
-BATCH_SIZE_LIMIT = 475000
 
 
 class Consumer(Thread):

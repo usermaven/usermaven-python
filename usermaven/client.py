@@ -1,23 +1,19 @@
 import atexit
 import logging
-import numbers
 import random
 import string
-from uuid import UUID
 
 from six import string_types
 
 from usermaven.consumer import Consumer
 from usermaven.request import batch_post
 from usermaven.utils import clean
+from usermaven.settings import ID_TYPES
 
 try:
     import queue
 except ImportError:
     import Queue as queue
-
-
-ID_TYPES = (numbers.Number, string_types, UUID)
 
 
 class Client(object):
@@ -99,8 +95,7 @@ class Client(object):
                 if send:
                     consumer.start()
 
-
-    def identify(self, user, company={}, custom={}):
+    def identify(self, user, company={}):
         require("user", user, dict)
         require("user_id", user["id"], ID_TYPES)
         require("user_email", user["email"], string_types)
@@ -121,6 +116,10 @@ class Client(object):
             "src": "usermaven-python"
         }
 
+        if user["custom"]:
+            require("user_custom", user["custom"], dict)
+            msg["user"]["custom"] = user["custom"]
+
         if company:
             require("company", company, dict)
             require("company_id", company["id"], ID_TYPES)
@@ -131,29 +130,21 @@ class Client(object):
                 "name": company["name"],
                 "created_at": company["created_at"]
             }
-        if custom:
-            require("custom", custom, dict)
-            msg["custom"] = custom
+            if company["custom"]:
+                require("company_custom", company["custom"], dict)
+                msg["company"]["custom"] = company["custom"]
 
         return self._enqueue(msg)
 
-    def track(self, event_type, user, company={}, event_attributes={}, custom={}):
-        require("user", user, dict)
-        require("user_id", user["id"], ID_TYPES)
-        require("user_email", user["email"], string_types)
-        require("user_created_at", user["created_at"], string_types)
+    def track(self, user_id, event_type, company={}, event_attributes={}):
+        require("user_id", user_id, ID_TYPES)
 
         msg = {
             "api_key": self.api_key,
             "event_type": event_type,
             "event_id": "",
             "ids": {},
-            "user": {
-                "anonymous_id": generate_id(),
-                "id": user["id"],
-                "email": user["email"],
-                "created_at": user["created_at"],
-            },
+            "user_id": user_id,
             "screen_resolution": "0",
             "src": "usermaven-python",
             "event_attributes": event_attributes
@@ -169,12 +160,11 @@ class Client(object):
                 "name": company["name"],
                 "created_at": company["created_at"]
             }
-        if custom:
-            require("custom", custom, dict)
-            msg["custom"] = custom
+            if company["custom"]:
+                require("company_custom", company["custom"], dict)
+                msg["company"]["custom"] = company["custom"]
 
         return self._enqueue(msg)
-
 
     def _enqueue(self, msg):
         """Push a new `msg` onto the queue, return `(success, msg)`"""
