@@ -33,7 +33,7 @@ client.identify({'email': 'john@gmail.com','id': '123', 'created_at': '2022'})
 #### Required arguments
 `user`: The user object is the only required argument for `identify` call. `email`, `id` and `created_at` are required
 fields for the user object. Recommended fields for the user object are `first_name` and `last_name`. Additionally you 
-can pass any custom fields to your user object.
+can pass any custom properties in the form of dictionary to your user object.
 
 #### Optional arguments
 You can also pass optional arguments to the `identify` method.

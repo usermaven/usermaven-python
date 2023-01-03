@@ -8,7 +8,9 @@ import six
 from usermaven import utils
 
 TEST_SERVER_TOKEN = "3a4a78a9-0e66-4c8b-aba9-5bbbd6aab7d3"
+TEST_API_KEY = "UMyfQUvciP"
 FAKE_TEST_SERVER_TOKEN = "random_token_for_testing"
+FAKE_TEST_API_KEY = "random_api_key_for_testing"
 
 
 class TestUtils(unittest.TestCase):

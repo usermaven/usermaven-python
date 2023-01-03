@@ -97,9 +97,14 @@ class Client(object):
 
     def identify(self, user, company={}):
         require("user", user, dict)
-        require("user_id", user["id"], ID_TYPES)
-        require("user_email", user["email"], string_types)
-        require("user_created_at", user["created_at"], string_types)
+        if "id" in user and "email" in user and "created_at" in user:
+            # user object has required attributes
+            require("user_id", user["id"], ID_TYPES)
+            require("user_email", user["email"], string_types)
+            require("user_created_at", user["created_at"], string_types)
+        else:
+            # user object is missing one or more of the required attributes
+            raise ValueError("user object is missing one or more of the required attributes")
 
         msg = {
             "api_key": self.api_key,
@@ -116,21 +121,27 @@ class Client(object):
             "src": "usermaven-python"
         }
 
-        if user["custom"]:
+        if "custom" in user:
             require("user_custom", user["custom"], dict)
             msg["user"]["custom"] = user["custom"]
 
         if company:
             require("company", company, dict)
-            require("company_id", company["id"], ID_TYPES)
-            require("company_name", company["name"], string_types)
-            require("company_created_at", company["created_at"], string_types)
+            if "id" in company and "name" in company and "created_at" in company:
+                # company object has required attributes
+                require("company_id", company["id"], ID_TYPES)
+                require("company_name", company["name"], string_types)
+                require("company_created_at", company["created_at"], string_types)
+            else:
+                # company object is missing one or more of the required attributes
+                raise ValueError("company object is missing one or more of the required attributes")
+
             msg["company"] = {
                 "id": company["id"],
                 "name": company["name"],
                 "created_at": company["created_at"]
             }
-            if company["custom"]:
+            if "custom" in company:
                 require("company_custom", company["custom"], dict)
                 msg["company"]["custom"] = company["custom"]
 
@@ -138,6 +149,7 @@ class Client(object):
 
     def track(self, user_id, event_type, company={}, event_attributes={}):
         require("user_id", user_id, ID_TYPES)
+        require("event_type", event_type, string_types)
 
         msg = {
             "api_key": self.api_key,
@@ -152,15 +164,21 @@ class Client(object):
 
         if company:
             require("company", company, dict)
-            require("company_id", company["id"], ID_TYPES)
-            require("company_name", company["name"], string_types)
-            require("company_created_at", company["created_at"], string_types)
+            if "id" in company and "name" in company and "created_at" in company:
+                # company object has required attributes
+                require("company_id", company["id"], ID_TYPES)
+                require("company_name", company["name"], string_types)
+                require("company_created_at", company["created_at"], string_types)
+            else:
+                # company object is missing one or more of the required attributes
+                raise ValueError("company object is missing one or more of the required attributes")
+
             msg["company"] = {
                 "id": company["id"],
                 "name": company["name"],
                 "created_at": company["created_at"]
             }
-            if company["custom"]:
+            if "custom" in company:
                 require("company_custom", company["custom"], dict)
                 msg["company"]["custom"] = company["custom"]
 
