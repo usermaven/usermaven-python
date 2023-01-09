@@ -156,7 +156,10 @@ class Client(object):
             "event_type": event_type,
             "event_id": "",
             "ids": {},
-            "user_id": user_id,
+            "user": {
+                "anonymous_id": generate_id(),
+                "id": user_id
+            },
             "screen_resolution": "0",
             "src": "usermaven-python",
             "event_attributes": event_attributes

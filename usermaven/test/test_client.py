@@ -51,7 +51,7 @@ class TestClient(unittest.TestCase):
         self.assertTrue(success)
         self.assertFalse(self.failed)
 
-        self.assertEqual(msg["user_id"], "user_id")
+        self.assertEqual(msg["user"]["id"], "user_id")
         self.assertEqual(msg["api_key"], "random_api_key_for_testing")
         self.assertEqual(msg["event_type"], "goal_created")
 
@@ -74,7 +74,7 @@ class TestClient(unittest.TestCase):
         self.assertEqual(msg["company"]["name"], "Usermaven")
         self.assertEqual(msg["company"]["id"], "5")
         self.assertEqual(msg["company"]["created_at"], "2022-12-12T19:11:49")
-        self.assertEqual(msg["user_id"], "user_id")
+        self.assertEqual(msg["user"]["id"], "user_id")
         self.assertEqual(msg["api_key"], "random_api_key_for_testing")
         self.assertEqual(msg["event_type"], "goal_created")
         self.assertEqual(msg["event_attributes"]["goal_name"], "signup")

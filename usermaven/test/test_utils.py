@@ -7,8 +7,8 @@ import six
 
 from usermaven import utils
 
-TEST_SERVER_TOKEN = "3a4a78a9-0e66-4c8b-aba9-5bbbd6aab7d3"
-TEST_API_KEY = "UMyfQUvciP"
+TEST_SERVER_TOKEN = "5ce1039f-e554-41f2-bcb6-55958cfcce0c"
+TEST_API_KEY = "UMLAClUgr5"
 FAKE_TEST_SERVER_TOKEN = "random_token_for_testing"
 FAKE_TEST_API_KEY = "random_api_key_for_testing"
 
