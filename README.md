@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://usermaven.com/">
-    <img src="usermaven-python/usermaven/assets/images/logos/usermaven-logo.png" height="60">
+    <img src="usermaven/assets/images/logos/usermaven-logo.png" height="60">
   </a>
   <p align="center">PRIVACY-FRIENDLY ANALYTICS TOOL</p>
 </p>
