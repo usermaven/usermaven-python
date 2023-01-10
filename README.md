@@ -5,11 +5,9 @@
   <p align="center">PRIVACY-FRIENDLY ANALYTICS TOOL</p>
 </p>
 
-<p align="center">
 ![PyPI](https://img.shields.io/badge/pypi-v0.1.1-blue)
 ![Software License](https://img.shields.io/badge/license-MIT-green)
 ![PyPI - Python Version](https://img.shields.io/badge/python-3.6%20and%20above-blue)
-</p>
 
 # Usermaven-python 
 
