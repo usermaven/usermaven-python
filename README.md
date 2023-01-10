@@ -1,10 +1,13 @@
 <p align="center">
   <a href="https://usermaven.com/">
-    <img src="usermaven/assets/images/logos/usermaven-logo.png" height="60">
+    <img src="https://usermaven.com/_next/image?url=%2Fimages%2Flogo.png&w=256&q=75" height="60">
   </a>
   <p align="center">PRIVACY-FRIENDLY ANALYTICS TOOL</p>
 </p>
 
+![PyPI](https://img.shields.io/badge/pypi-v0.1.1-blue)
+![Software License](https://img.shields.io/badge/license-MIT-green)
+![PyPI - Python Version](https://img.shields.io/badge/python-3.6%20and%20above-blue)
 
 # Usermaven-python 
 
@@ -13,7 +16,7 @@ This module is compatible with Python 3.6 and above.
 ## Installing
 
 ```bash
-pip3 install usermaven-python
+pip3 install usermaven
 ```
 
 ## Usage
