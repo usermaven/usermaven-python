@@ -1,4 +1,14 @@
+<p align="center">
+  <a href="https://usermaven.com/">
+    <img src="usermaven-python/usermaven/assets/images/logos/usermaven-logo.png" height="60">
+  </a>
+  <p align="center">PRIVACY-FRIENDLY ANALYTICS TOOL</p>
+</p>
+
+
 # Usermaven-python 
+
+This module is compatible with Python 3.6 and above.
 
 ## Installing
 
@@ -83,3 +93,7 @@ For local development, you can clone the repository and install the dependencies
 git clone "https://github.com/usermaven/usermaven-python.git"
 poetry install
 ```
+
+## Running tests
+
+Changes to the library can be tested by running `python -m unittest -v` from the parent directory.
