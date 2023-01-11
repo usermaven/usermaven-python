@@ -1,8 +1,8 @@
 <p align="center">
   <a href="https://usermaven.com/">
     <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="usermaven/assets/images/logos/usermaven-logo-white.png" height="60">
-        <img alt="Dark/Light mode logos" src="usermaven/assets/images/logos/usermaven-logo.png" height="60">
+        <source media="(prefers-color-scheme: dark)" srcset="https://storage.googleapis.com/lumotive-web-storage/usermaven/usermaven-white.png" height="60">
+        <img alt="Dark/Light mode logos" src="https://storage.googleapis.com/lumotive-web-storage/usermaven/usermaven-dark.webp" height="60">
     </picture>
   </a>
   <p align="center">PRIVACY-FRIENDLY ANALYTICS TOOL</p>
