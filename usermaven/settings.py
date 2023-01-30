@@ -11,5 +11,5 @@ MAX_MSG_SIZE = 32 << 10
 # lower to leave space for extra data that will be added later, eg. "sentAt".
 BATCH_SIZE_LIMIT = 475000
 
-DEFAULT_HOST = "https://eventcollectors.usermaven.com"
+DEFAULT_HOST = "https://events.usermaven.com"
 USER_AGENT = "usermaven-python/" + VERSION

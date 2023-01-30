@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "usermaven"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
 authors = ["usermaven <azhar@usermaven.com>"]
 readme = "README.md"
